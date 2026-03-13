@@ -8,6 +8,33 @@ Creates an [AWS Lambda](https://aws.amazon.com/lambda/) function writing to [Ama
 
 ![architecture](docs/architecture.png)
 
+## Throttling Configuration
+
+This stack implements AWS Well-Architected Framework REL05-BP02 best practices for request throttling:
+
+### Stage-Level Throttling
+- **Rate Limit**: 1,000 requests per second
+- **Burst Limit**: 2,000 requests
+
+### Usage Plan (Standard Tier)
+- **Rate Limit**: 500 requests per second
+- **Burst Limit**: 1,000 requests
+- **Daily Quota**: 10,000 requests
+
+### API Key Usage
+After deployment, retrieve the API key from AWS Console (API Gateway → API Keys) or using AWS CLI:
+```bash
+aws apigateway get-api-keys --include-values
+```
+
+Include the API key in requests using the `x-api-key` header:
+```bash
+curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/ \
+  -H "x-api-key: your-api-key-value" \
+  -H "Content-Type: application/json" \
+  -d '{"year":"2023","title":"example","id":"12"}'
+```
+
 ## Setup
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
@@ -35,7 +62,7 @@ $ source .venv/bin/activate
 If you are a Windows platform, you would activate the virtualenv like this:
 
 ```
-% .venv\Scripts\activate.bat
+% .venv\\Scripts\\activate.bat
 ```
 
 Once the virtualenv is activated, you can install the required dependencies.
