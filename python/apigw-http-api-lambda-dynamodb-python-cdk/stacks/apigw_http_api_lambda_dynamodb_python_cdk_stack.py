@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_iam as iam,
     aws_logs as logs,
+    aws_cloudwatch as cloudwatch,
     Duration,
 )
 from constructs import Construct
@@ -111,12 +112,14 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             retention=logs.RetentionDays.ONE_YEAR,
         )
 
-        # Create API Gateway
-        apigw_.LambdaRestApi(
+        # Create API Gateway with throttling configuration
+        api = apigw_.LambdaRestApi(
             self,
             "Endpoint",
             handler=api_hanlder,
             deploy_options=apigw_.StageOptions(
+                throttling_rate_limit=1000,
+                throttling_burst_limit=2000,
                 tracing_enabled=True,
                 access_log_destination=apigw_.LogGroupLogDestination(api_log_group),
                 access_log_format=apigw_.AccessLogFormat.json_with_standard_fields(
@@ -131,4 +134,40 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
                     user=True,
                 ),
             ),
+        )
+
+        # Create usage plan for API consumers
+        usage_plan = api.add_usage_plan(
+            "StandardUsagePlan",
+            name="StandardTier",
+            throttle=apigw_.ThrottleSettings(
+                rate_limit=500,
+                burst_limit=1000
+            ),
+            quota=apigw_.QuotaSettings(
+                limit=10000,
+                period=apigw_.Period.DAY
+            )
+        )
+
+        # Create API key for consumers
+        api_key = api.add_api_key(
+            "ConsumerApiKey",
+            api_key_name="standard-consumer-key"
+        )
+        usage_plan.add_api_key(api_key)
+
+        # CloudWatch alarm for throttled requests
+        cloudwatch.Alarm(
+            self,
+            "ApiThrottleAlarm",
+            metric=cloudwatch.Metric(
+                namespace="AWS/ApiGateway",
+                metric_name="Count",
+                dimensions_map={"ApiName": api.rest_api_name},
+                statistic="Sum"
+            ),
+            threshold=100,
+            evaluation_periods=2,
+            alarm_description="Alert when API requests are throttled"
         )
