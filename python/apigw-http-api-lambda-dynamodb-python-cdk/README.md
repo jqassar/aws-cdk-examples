@@ -25,6 +25,11 @@ This stack implements AWS Well-Architected Framework REL05-BP02 best practices f
 - **Reserved Concurrent Executions**: 100
 - **Purpose**: Prevents this function from consuming all account-level Lambda concurrency, protecting other workloads
 
+### AWS WAF Rate Limiting
+- **Per-IP Rate Limit**: 2,000 requests per 5 minutes
+- **Action**: Block requests exceeding limit
+- **Purpose**: Protect against DDoS attacks and malicious traffic from individual sources
+
 ### API Key Usage
 After deployment, retrieve the API key from AWS Console (API Gateway → API Keys) or using AWS CLI:
 ```bash
@@ -42,6 +47,8 @@ curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/ \
 ### Monitoring
 - CloudWatch alarm triggers when API Gateway throttles requests
 - CloudWatch alarm triggers when Lambda function is throttled (>10 throttles in 2 evaluation periods)
+- CloudWatch alarm triggers when WAF blocks requests (>100 in 5 minutes)
+- WAF metrics available in CloudWatch under AWS/WAFV2 namespace
 
 ## Setup
 

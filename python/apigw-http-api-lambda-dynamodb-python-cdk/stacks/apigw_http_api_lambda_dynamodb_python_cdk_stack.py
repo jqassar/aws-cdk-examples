@@ -11,6 +11,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_logs as logs,
     aws_cloudwatch as cloudwatch,
+    aws_wafv2 as wafv2,
     Duration,
 )
 from constructs import Construct
@@ -181,4 +182,62 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             threshold=10,
             evaluation_periods=2,
             alarm_description="Alert when Lambda function is throttled due to concurrency limits"
+        )
+
+        # Create AWS WAF Web ACL
+        web_acl = wafv2.CfnWebACL(
+            self,
+            "ApiWebAcl",
+            scope="REGIONAL",
+            default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="ApiWebAcl",
+                sampled_requests_enabled=True
+            ),
+            rules=[
+                wafv2.CfnWebACL.RuleProperty(
+                    name="RateLimitRule",
+                    priority=1,
+                    statement=wafv2.CfnWebACL.StatementProperty(
+                        rate_based_statement=wafv2.CfnWebACL.RateBasedStatementProperty(
+                            limit=2000,
+                            aggregate_key_type="IP"
+                        )
+                    ),
+                    action=wafv2.CfnWebACL.RuleActionProperty(block={}),
+                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                        cloud_watch_metrics_enabled=True,
+                        metric_name="RateLimitRule",
+                        sampled_requests_enabled=True
+                    )
+                )
+            ]
+        )
+
+        # Associate WAF Web ACL with API Gateway
+        wafv2.CfnWebACLAssociation(
+            self,
+            "WebAclAssociation",
+            resource_arn=api.deployment_stage.stage_arn,
+            web_acl_arn=web_acl.attr_arn
+        )
+
+        # CloudWatch alarm for WAF blocked requests
+        cloudwatch.Alarm(
+            self,
+            "WafBlockedRequestsAlarm",
+            metric=cloudwatch.Metric(
+                namespace="AWS/WAFV2",
+                metric_name="BlockedRequests",
+                dimensions_map={
+                    "WebACL": web_acl.name,
+                    "Region": self.region,
+                    "Rule": "RateLimitRule"
+                },
+                statistic="Sum"
+            ),
+            threshold=100,
+            evaluation_periods=1,
+            alarm_description="Alert when WAF blocks requests due to rate limiting"
         )
