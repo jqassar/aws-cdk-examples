@@ -21,6 +21,10 @@ This stack implements AWS Well-Architected Framework REL05-BP02 best practices f
 - **Burst Limit**: 1,000 requests
 - **Daily Quota**: 10,000 requests
 
+### Lambda Concurrency Configuration
+- **Reserved Concurrent Executions**: 100
+- **Purpose**: Prevents this function from consuming all account-level Lambda concurrency, protecting other workloads
+
 ### API Key Usage
 After deployment, retrieve the API key from AWS Console (API Gateway → API Keys) or using AWS CLI:
 ```bash
@@ -34,6 +38,10 @@ curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/ \
   -H "Content-Type: application/json" \
   -d '{"year":"2023","title":"example","id":"12"}'
 ```
+
+### Monitoring
+- CloudWatch alarm triggers when API Gateway throttles requests
+- CloudWatch alarm triggers when Lambda function is throttled (>10 throttles in 2 evaluation periods)
 
 ## Setup
 

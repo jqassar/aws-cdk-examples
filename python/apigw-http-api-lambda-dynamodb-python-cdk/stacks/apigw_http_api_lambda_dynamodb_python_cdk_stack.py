@@ -99,6 +99,7 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             timeout=Duration.minutes(5),
             tracing=lambda_.Tracing.ACTIVE,
             log_retention=logs.RetentionDays.ONE_YEAR,
+            reserved_concurrent_executions=100,
         )
 
         # grant permission to lambda to write to demo table
@@ -170,4 +171,14 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             threshold=100,
             evaluation_periods=2,
             alarm_description="Alert when API requests are throttled"
+        )
+
+        # CloudWatch alarm for Lambda throttles
+        cloudwatch.Alarm(
+            self,
+            "LambdaThrottleAlarm",
+            metric=api_hanlder.metric_throttles(),
+            threshold=10,
+            evaluation_periods=2,
+            alarm_description="Alert when Lambda function is throttled due to concurrency limits"
         )
